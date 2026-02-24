@@ -1,0 +1,15 @@
+# Terraform cache
+.terraform/
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+
+# Terraform provider binaries
+terraform-provider*
+
+# Sensitive vars
+terraform.tfvars
+
+# OS files
+.DS_Store
