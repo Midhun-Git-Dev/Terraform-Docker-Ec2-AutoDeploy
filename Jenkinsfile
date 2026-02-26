@@ -1,16 +1,12 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'maven3'
-    }
-
     environment {
-        IMAGE_NAME        = 'devops-observability-cicd-platform'
-        CONTAINER_NAME    = 'devops-observability-cicd-platform'
-        SONARQUBE_SERVER  = 'sonarqube-server'
-        SONAR_PROJECT_KEY = 'devops-observability-cicd-platform'
-        SONAR_PROJECT_NAME= 'devops-observability-cicd-platform'
+        IMAGE_NAME = 'terraform-docker-nginx-app'
+        CONTAINER_NAME = 'terraform-docker-nginx-app'
+        SONARQUBE_SERVER = 'sonarqube-server'
+        SONAR_PROJECT_KEY = 'terraform-docker-nginx-app'
+        SONAR_PROJECT_NAME = 'terraform-docker-nginx-app'
     }
 
     stages {
@@ -30,57 +26,22 @@ pipeline {
             }
         }
 
-        stage('Build WAR') {
-            steps {
-                sh 'mvn clean package -DskipTests'
-            }
-        }
-
-        /*
-        ========================================
-        ✅ FIXED SONARQUBE STAGE
-        Uses Jenkins SonarScanner TOOL
-        ========================================
-        */
         stage('SonarQube Scan') {
             steps {
-                script {
-                    def scannerHome = tool 'sonar-scanner'
-                    withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                        sh """
-                        ${scannerHome}/bin/sonar-scanner \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                          -Dsonar.sources=.
-                        """
-                    }
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                    sh '''
+                    sonar-scanner \
+                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                    -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                    -Dsonar.sources=app
+                    '''
                 }
-            }
-        }
-
-        stage('Quality Gate Check') {
-            steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Prepare WAR for Docker') {
-            steps {
-                sh '''
-                rm -rf docker-tomcat-app/webapp || true
-                mkdir -p docker-tomcat-app/webapp/target
-                cp webapp/target/*.war docker-tomcat-app/webapp/target/
-                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('docker-tomcat-app') {
-                    sh "docker build -t ${IMAGE_NAME}:latest ."
-                }
+                sh "docker build -t ${IMAGE_NAME}:latest app"
             }
         }
 
@@ -89,8 +50,7 @@ pipeline {
                 sh '''
                 docker stop ${CONTAINER_NAME} || true
                 docker rm ${CONTAINER_NAME} || true
-                docker run -d \
-                  -p 8085:8080 \
+                docker run -d -p 8085:80 \
                   --restart unless-stopped \
                   --name ${CONTAINER_NAME} \
                   ${IMAGE_NAME}:latest
@@ -100,7 +60,6 @@ pipeline {
     }
 
     post {
-
         success {
             slackSend(
                 color: 'good',
@@ -108,7 +67,6 @@ pipeline {
 ✅ *BUILD SUCCESS*
 *Job:* ${env.JOB_NAME}
 *Build:* #${env.BUILD_NUMBER}
-*SonarQube:* PASSED
 *URL:* ${env.BUILD_URL}
 """
             )
@@ -119,18 +77,6 @@ pipeline {
                 color: 'danger',
                 message: """
 ❌ *BUILD FAILED*
-*Job:* ${env.JOB_NAME}
-*Build:* #${env.BUILD_NUMBER}
-*Check Logs:* ${env.BUILD_URL}
-"""
-            )
-        }
-
-        unstable {
-            slackSend(
-                color: 'warning',
-                message: """
-⚠️ *BUILD UNSTABLE*
 *Job:* ${env.JOB_NAME}
 *Build:* #${env.BUILD_NUMBER}
 *URL:* ${env.BUILD_URL}
