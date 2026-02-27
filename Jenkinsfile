@@ -44,6 +44,15 @@ pipeline {
                 sh "docker build -t ${IMAGE_NAME}:latest app"
             }
         }
+        
+        
+        stage('Trivy Security Scan') {
+    steps {
+        sh '''
+        trivy image --severity HIGH,CRITICAL --exit-code 0 ${IMAGE_NAME}:latest
+        '''
+    }
+}
 
  
 
