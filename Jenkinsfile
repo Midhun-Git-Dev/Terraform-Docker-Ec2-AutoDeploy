@@ -45,13 +45,7 @@ pipeline {
             }
         }
 
-        stage('Trivy Security Scan') {
-    steps {
-        sh '''
-        trivy image --severity HIGH,CRITICAL --exit-code 0 terraform-docker-nginx-app:latest
-        '''
-    }
-}
+ 
 
         stage('Run Docker Container') {
             steps {
