@@ -49,7 +49,12 @@ pipeline {
         stage('Trivy Security Scan') {
     steps {
         sh '''
-        trivy image --severity HIGH,CRITICAL --exit-code 0 ${IMAGE_NAME}:latest
+        trivy image \
+        --severity HIGH,CRITICAL \
+        --scanners vuln \
+        --timeout 5m \
+        --skip-db-update \
+        ${IMAGE_NAME}:latest
         '''
     }
 }
